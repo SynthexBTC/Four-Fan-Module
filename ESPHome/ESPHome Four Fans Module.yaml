@@ -1,0 +1,197 @@
+
+one_wire:
+  # Temperature Sensor Network 1-wire
+  - platform: gpio
+    pin: GPIO2
+
+output:
+  # Fan 4 PWM output
+  - platform: ledc
+    id: pwm4
+    pin: GPIO7
+    frequency: "1000 Hz"
+    min_power: 0%
+    max_power: 100%
+  # Fan 2 PWM output
+  - platform: ledc
+    id: pwm2
+    pin: GPIO10
+    frequency: "1000 Hz"
+    min_power: 0%
+    max_power: 100%
+  # Fan 1 PWM output
+  - platform: ledc
+    id: pwm1
+    pin: GPIO20
+    frequency: "1000 Hz"
+    min_power: 0%
+    max_power: 100%
+  # Fan 3 PWM output
+  - platform: ledc
+    id: pwm3
+    pin: GPIO21
+    frequency: "1000 Hz"
+    min_power: 0%
+    max_power: 100%
+  # Control Board Simulate 4 FAN RPM
+  - platform: ledc
+    id: rpm_ctrlboard_output
+    pin: GPIO1
+
+
+sensor:
+  # Temperature Sensor 1
+  - platform: dallas_temp
+    id: temp_dallas_0
+    index: 0
+    update_interval: 2s
+  # Temperature Sensor 2
+  - platform: dallas_temp
+    id: temp_dallas_1
+    index: 1
+    update_interval: 2s
+  # Temperature Sensor 3
+  - platform: dallas_temp
+    id: temp_dallas_2
+    index: 2
+    update_interval: 2s
+
+  # Fan 4 RPM input
+  - platform: pulse_counter
+    name: "RPM 4"
+    id: rpm4
+    pin:
+      number: GPIO3
+      mode:
+        input: true
+        pullup: true
+    unit_of_measurement: 'RPM'
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.5
+      - clamp:
+          max_value: 10000
+      - median:
+          window_size: 7
+          send_every: 2
+          send_first_at: 2
+    update_interval: 2s
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+  # Fan 2 RPM input
+  - platform: pulse_counter
+    name: "RPM 2"
+    id: rpm2
+    pin:
+      number: GPIO4
+      mode:
+        input: true
+        pullup: true
+    unit_of_measurement: 'RPM'
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.5
+      - clamp:
+          max_value: 10000
+      - median:
+          window_size: 7
+          send_every: 2
+          send_first_at: 2
+    update_interval: 2s
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+  # Fan 1 RPM input
+  - platform: pulse_counter
+    name: "RPM 1"
+    id: rpm1
+    pin:
+      number: GPIO5
+      mode:
+        input: true
+        pullup: true
+    unit_of_measurement: 'RPM'
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.5
+      - clamp:
+          max_value: 10000
+      - median:
+          window_size: 7
+          send_every: 2
+          send_first_at: 2
+    update_interval: 2s
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+  # Fan 3 RPM input
+  - platform: pulse_counter
+    name: "RPM 3"
+    id: rpm3
+    pin:
+      number: GPIO6
+      mode:
+        input: true
+        pullup: true
+    unit_of_measurement: 'RPM'
+    accuracy_decimals: 0
+    filters:
+      - multiply: 0.5
+      - clamp:
+          max_value: 10000
+      - median:
+          window_size: 7
+          send_every: 2
+          send_first_at: 2
+    update_interval: 2s
+    count_mode:
+      rising_edge: INCREMENT
+      falling_edge: DISABLE
+
+  # Control Board PWM Voltage
+  - platform: adc
+    pin: GPIO0
+    name: "PWM Voltage CtrlBoard"
+    id: pwm_voltage_ctrlboard
+    update_interval: 500ms
+    attenuation: auto
+    filters:
+      - multiply: 1
+
+  # Control Board PWM Pourcentage
+  - platform: template
+    name: "PWM CtrlBoard"
+    id: pwm_ctrlboard
+    update_interval: 500ms
+    unit_of_measurement: "%"
+    lambda: |-
+      float v = id(pwm_voltage_ctrlboard).state;
+      return (int(52*v+0.5));
+    on_value:
+      then:
+      # Direct Simulate 4 FAN for Control Board
+      - output.ledc.set_frequency:
+          id: rpm_ctrlboard_output
+          frequency: !lambda "return (int(id(pwm_voltage_ctrlboard).state*5500/30));"
+      - output.set_level:
+          id: rpm_ctrlboard_output
+          level: "20%"
+    filters:
+      - clamp:
+          max_value: 100
+          min_value: 0
+      - median:
+          window_size: 1
+          send_every: 1
+          send_first_at: 1
+
+light:
+  # ESP32C3 SuperMini Plus on-board WS2812 LED
+  - platform: esp32_rmt_led_strip
+    rgb_order: GRB
+    pin: GPIO8
+    num_leds: 1
+    chipset: ws2812
+    name: "LED"
+
